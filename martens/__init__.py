@@ -2,6 +2,6 @@
 
 __author__ = """Alex Rowley"""
 __email__ = 'current.address@unknown.invalid'
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 
 from .martens import Dataset, SourceFile, stack
