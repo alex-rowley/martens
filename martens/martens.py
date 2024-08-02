@@ -71,6 +71,20 @@ class Dataset(dict):
         name = next(iter(params))
         return [func(self[name][max(0, i - window_size + 1):i + 1]) for i in range(self.record_length)]
 
+    def rolling_apply(self, func, grouping_cols):
+        assert callable(func), "Rolling apply requires a callable argument"
+        params = inspect.signature(func).parameters
+        assert len(params) == 1, "Rolling apply function can only accept one argument"
+        name = next(iter(params))
+        grouped_col = self.group_by(grouping_cols)[name]
+        rtn = []
+        for each_list in grouped_col:
+            val_list = []
+            for val in each_list:
+                val_list.append(val)
+                rtn.append(func(val_list))
+        return rtn
+
     def mutate(self, mutation, name=None):
         return self.__with__({name if name is not None else mutation.__name__: self.apply(mutation)})
 
@@ -82,6 +96,10 @@ class Dataset(dict):
 
     def window_mutate(self, mutation, window_size=1, name=None):
         result = self.window_apply(mutation, window_size=window_size)
+        return self.__with__({name if name is not None else mutation.__name__: result})
+
+    def rolling_mutate(self, mutation, grouping_cols, name=None):
+        result = self.rolling_apply(func=mutation, grouping_cols=grouping_cols)
         return self.__with__({name if name is not None else mutation.__name__: result})
 
     def replace(self, mutation, included_names=None, excluded_names=None):
@@ -153,10 +171,13 @@ class Dataset(dict):
 
     # TODO: Check if all the records are lists
     # This is where you have a column which just has lists and you need those lists over multiple rows
-    def column_stack(self, name):
+    def column_stack(self, name, new_name=None, enumeration=None):
         existing = {col: [val for val, res in zip(self[col], self[name]) for _ in res] for col in self if
                     col not in name}
-        new = {name: [val for rec in self[name] for val in rec]}
+        indexes, new_data = zip(*[(index, val) for rec in self[name] for index, val in enumerate(rec)])
+        new = {name if new_name is None else new_name: list(new_data)}
+        if enumeration is not None:
+            new[enumeration] = list(indexes)
         return Dataset({**existing, **new})
 
     def json_explode(self, name):
@@ -202,6 +223,8 @@ class Dataset(dict):
 
     # Neat little sorting function
     def sort(self, names, reverse=False):
+        assert isinstance(names,list), "Type error: Not a list of names"
+        assert all([name in self.columns for name in names]), "Columns do not match"
         sort_order = names + [col for col in self.columns if col not in names]
         sorted_data = sorted(zip(*[self[col] for col in sort_order]), reverse=reverse, key=lambda x: x[0:len(names)])
         rtn = {c: list(v) for c, v in zip(sort_order, zip(*sorted_data))}
@@ -250,11 +273,12 @@ class Dataset(dict):
         # TODO: handle error if user tries to merge on columns that don't exist
         # TODO: handle error if user tries to merge a dataset containing only the key columns
         assert isinstance(right, Dataset), "Type error: Right is not a dataset"
-        assert isinstance(on, list), "Type error: Keys are not a list"
         assert how in ['inner', 'left', 'right', 'full'], "Expecting how to be 'inner', 'left', 'right' or 'full'"
 
         if on is None:
             return self.full_outer_merge(right)
+
+        assert isinstance(on, list), "Type error: Keys are not a list"
 
         def tuple_key(cols):
             return tuple(cols[i] for i in range(len(on)))
@@ -373,7 +397,6 @@ class Dataset(dict):
     @property
     def headings_lower(self):
         return Dataset({col.lower(): self[col] for col in self.columns})
-
 
     @property
     def rows(self):
