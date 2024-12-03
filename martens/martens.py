@@ -147,14 +147,12 @@ class Dataset(dict):
 
     # ... or where you want to stack the results
     # TODO: Can I use either with or existing in this section
-    def mutate_stack(self, mutation, name=None, save_len=None):
-        result = self.apply(mutation)
-        assert all([hasattr(r, '__iter__') for r in result]), "Some function results are not iterable"
-        existing = {col: [val for val, res in zip(self[col], result) for _ in res] for col in self}
-        new = {name if name is not None else mutation.__name__: [v for r in result for v in r]}
-        if save_len is not None:
-            new[save_len] = [len(r) for r in result for _ in r]
-        return Dataset({**existing, **new})
+    def mutate_stack(self, mutation, name=None, save_len=None, enumeration=None):
+        new_name = name if name is not None else mutation.__name__
+        return self.mutate(mutation, 'temp_col_mutate_stack') \
+            .column_stack('temp_col_mutate_stack', new_name, save_len, enumeration) \
+            .drop(['temp_col_mutate_stack'])
+
 
     # TODO: Check if the records are all dicts
     # This function is great for stretching out record data into
@@ -171,11 +169,13 @@ class Dataset(dict):
 
     # TODO: Check if all the records are lists
     # This is where you have a column which just has lists and you need those lists over multiple rows
-    def column_stack(self, name, new_name=None, enumeration=None):
+    def column_stack(self, name, new_name=None, save_len=None, enumeration=None):
         existing = {col: [val for val, res in zip(self[col], self[name]) for _ in res] for col in self if
                     col not in name}
         indexes, new_data = zip(*[(index, val) for rec in self[name] for index, val in enumerate(rec)])
         new = {name if new_name is None else new_name: list(new_data)}
+        if save_len is not None:
+            new[save_len] = len(indexes)
         if enumeration is not None:
             new[enumeration] = list(indexes)
         return Dataset({**existing, **new})
