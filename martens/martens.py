@@ -71,18 +71,24 @@ class Dataset(dict):
         name = next(iter(params))
         return [func(self[name][max(0, i - window_size + 1):i + 1]) for i in range(self.record_length)]
 
-    def rolling_apply(self, func, grouping_cols):
+    def rolling_apply(self, func, grouping_cols=None):
         assert callable(func), "Rolling apply requires a callable argument"
         params = inspect.signature(func).parameters
         assert len(params) == 1, "Rolling apply function can only accept one argument"
         name = next(iter(params))
-        grouped_col = self.group_by(grouping_cols)[name]
         rtn = []
-        for each_list in grouped_col:
-            val_list = []
-            for val in each_list:
-                val_list.append(val)
-                rtn.append(func(val_list))
+        if grouping_cols is not None:
+            grouped_col = self.group_by(grouping_cols)[name]
+            for each_list in grouped_col:
+                val_list = []
+                for val in each_list:
+                    val_list.append(val)
+                    rtn.append(func(val_list))
+        else:
+            vals = []
+            for val in self[name]:
+                vals.append(val)
+                rtn.append(func(vals))
         return rtn
 
     def mutate(self, mutation, name=None):
@@ -98,7 +104,7 @@ class Dataset(dict):
         result = self.window_apply(mutation, window_size=window_size)
         return self.__with__({name if name is not None else mutation.__name__: result})
 
-    def rolling_mutate(self, mutation, grouping_cols, name=None):
+    def rolling_mutate(self, mutation, grouping_cols=None, name=None):
         result = self.rolling_apply(func=mutation, grouping_cols=grouping_cols)
         return self.__with__({name if name is not None else mutation.__name__: result})
 
