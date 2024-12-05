@@ -178,10 +178,10 @@ class Dataset(dict):
     def column_stack(self, name, new_name=None, save_len=None, enumeration=None):
         existing = {col: [val for val, res in zip(self[col], self[name]) for _ in res] for col in self if
                     col not in name}
-        indexes, new_data = zip(*[(index, val) for rec in self[name] for index, val in enumerate(rec)])
+        indexes, new_data, length = zip(*[(index, val, len(rec)) for rec in self[name] for index, val in enumerate(rec)])
         new = {name if new_name is None else new_name: list(new_data)}
         if save_len is not None:
-            new[save_len] = len(indexes)
+            new[save_len] = list(length)
         if enumeration is not None:
             new[enumeration] = list(indexes)
         return Dataset({**existing, **new})
@@ -236,19 +236,19 @@ class Dataset(dict):
         rtn = {c: list(v) for c, v in zip(sort_order, zip(*sorted_data))}
         return Dataset({col: rtn[col] for col in sort_order})
 
-    def group_by(self, grouping_cols, other_cols=None, count='count'):
+    def group_by(self, grouping_cols, other_cols=None, count=None):
         assert isinstance(grouping_cols, list), "Type error: grouping_col should be a list"
         if other_cols is None:
             other_cols = [col for col in self.columns if col not in grouping_cols]
         assert isinstance(other_cols, list), "Type error: other_cols should be a list or None"
-        assert isinstance(count, str), "Type error: with_count should be a string"
+        # assert isinstance(count, str), "Type error: with_count should be a string"
 
         sorts = self.sort(grouping_cols)
 
         last_grouped = None
         rtn = dict()
 
-        for col in grouping_cols + other_cols + [count]:
+        for col in grouping_cols + other_cols + ([count] if count is not None else []):
             rtn[col] = list()
 
         for rec in sorts.records:
@@ -256,13 +256,15 @@ class Dataset(dict):
             if grouped == last_grouped:
                 for o in other_cols:
                     rtn[o][-1].append(rec[o])
-                rtn[count][-1] = rtn[count][-1] + 1
+                if count is not None:
+                    rtn[count][-1] = rtn[count][-1] + 1
             else:
                 for g in grouping_cols:
                     rtn[g].append(rec[g])
                 for o in other_cols:
                     rtn[o].append([rec[o]])
-                rtn[count].append(1)
+                if count is not None:
+                    rtn[count].append(1)
             last_grouped = grouped
 
         return Dataset(rtn)
