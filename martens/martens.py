@@ -64,12 +64,12 @@ class Dataset(dict):
             "Function arguments do not correspond to available columns"
         return func(**{param: self[param] for param in params})
 
-    def window_apply(self, func, window_size=1):
+    def window_apply(self, func, window=1):
         assert callable(func), "Window apply requires a callable argument"
         params = inspect.signature(func).parameters
         assert len(params) == 1, "Window function can only accept one argument"
         name = next(iter(params))
-        return [func(self[name][max(0, i - window_size + 1):i + 1]) for i in range(self.record_length)]
+        return [func(self[name][max(0, i - window + 1):i + 1]) for i in range(self.record_length)]
 
     def rolling_apply(self, func, grouping_cols=None):
         assert callable(func), "Rolling apply requires a callable argument"
@@ -100,8 +100,9 @@ class Dataset(dict):
         assert len(result) == self.record_length, "Some returns are not same length as record length"
         return self.__with__({name if name is not None else mutation.__name__: result})
 
-    def window_mutate(self, mutation, window_size=1, name=None):
-        result = self.window_apply(mutation, window_size=window_size)
+
+    def window_mutate(self, mutation, window, name=None):
+        result = self.window_apply(mutation, window=window)
         return self.__with__({name if name is not None else mutation.__name__: result})
 
     def rolling_mutate(self, mutation, grouping_cols=None, name=None):
@@ -280,6 +281,7 @@ class Dataset(dict):
 
         # TODO: handle error if user tries to merge on columns that don't exist
         # TODO: handle error if user tries to merge a dataset containing only the key columns
+        # TODO: handle a bug if a user tries to merge a dataset with a column that exists in both but is not part of the merge
         assert isinstance(right, Dataset), "Type error: Right is not a dataset"
         assert how in ['inner', 'left', 'right', 'full'], "Expecting how to be 'inner', 'left', 'right' or 'full'"
 
