@@ -429,7 +429,7 @@ class Dataset(dict):
         return rtn
 
     def first_n(self, n=10):
-        return self.with_id('__id__').filter(lambda __id__: __id__ < n).drop(['__id__'])
+        return Dataset({col: self[col][0:n] for col in self})
 
     @property
     def headings_camel_to_snake(self):
@@ -487,7 +487,7 @@ class Dataset(dict):
 # A class used to parse data from source files and access the Dataset
 class SourceFile:
 
-    def __init__(self, file_path, sheet_name="Sheet1", from_row=1, from_col=1,
+    def __init__(self, file_path, sheet_name="Sheet1", from_row=0, from_col=0,
                  file_type=None, to_row=None, to_col=None, date_columns=None, using_range=None):
         self.file_path = file_path
         file_tokens = file_path.split('.')
@@ -516,8 +516,8 @@ class SourceFile:
         sheet = workbook[self.sheet_name]
         trim_col = len([x for x in sheet.columns]) if self.to_col is None else self.to_col
         return Dataset({
-            __sanitise_column_name__(col[self.from_row - 1].value):
-                [cell.value for cell in col[self.from_row:self.to_row]]
+            __sanitise_column_name__(col[self.from_row].value):
+                [cell.value for cell in col[self.from_row + 1:self.to_row]]
             for index, col in enumerate(sheet.columns) if index < trim_col
         })
 
@@ -526,21 +526,27 @@ class SourceFile:
         book = xlrd.open_workbook(self.file_path)
         sheet = book.sheet_by_name(self.sheet_name)
         col_limit = sheet.ncols if self.to_col is None else self.to_col
-        columns = [sheet.col_values(col) for col in range(self.from_col - 1, col_limit)]
+        columns = [sheet.col_values(col) for col in range(self.from_col, col_limit)]
         return Dataset({
-            __sanitise_column_name__(col[self.from_row - 1]):
+            __sanitise_column_name__(col[self.from_row]):
                 [
                     self.conditional_xls_float_to_date(cell, book, index)
-                    if cell != '' else None for cell in col[self.from_row:self.to_row]]
+                    if cell != '' else None for cell in col[self.from_row + 1:self.to_row]]
             for index, col in enumerate(columns)
         })
 
     @property
     def csv(self):
         reader = csv.reader(open(self.file_path))
-        _ = [next(reader, None) for _ in range(self.from_row - 1)]
-        headers = [__sanitise_column_name__(w) for w in next(reader, None)][(self.from_col - 1):self.to_col]
-        rawdata = [list(d) for d in zip(*[r for r in reader])][(self.from_col - 1):self.to_col]
+        _ = [next(reader, None) for _ in range(self.from_row)]
+        headers = [__sanitise_column_name__(w) for w in next(reader, None)][self.from_col:self.to_col]
+        if self.to_row:
+            row_count = self.to_row - self.from_row
+            rows = [next(reader, None) for _ in range(row_count)]
+            rows = [r for r in rows if r is not None]
+        else:
+            rows = [row for row in reader]
+        rawdata = [list(d) for d in zip(*rows)][self.from_col:self.to_col]
         return Dataset({h: d for h, d in zip(headers, rawdata)})
 
 
@@ -599,6 +605,6 @@ def parse_excel_range(excel_range):
         end_col = excel_column_name_to_number(end_col_str)
         start_row = int(start_row_str)
         end_row = int(end_row_str)
-        return start_row, start_col, end_row, end_col
+        return start_row - 1, start_col - 1, end_row, end_col
     else:
-        return 1, 1, None, None
+        return 0, 0, None, None
