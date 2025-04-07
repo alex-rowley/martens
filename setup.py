@@ -3,7 +3,6 @@
 """The setup script."""
 
 from setuptools import setup, find_packages
-from pkg_resources import parse_requirements
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
@@ -12,7 +11,7 @@ with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
 with open("requirements.txt") as requirements_file:
-    requirements = [str(req) for req in parse_requirements(f)]
+    requirements = requirements_file.read().splitlines()
 
 test_requirements = ['pytest>=3', ]
 
@@ -41,6 +40,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/arowley-ai/martens',
-    version='0.3.12',
+    version='0.3.11',
     zip_safe=False
 )
