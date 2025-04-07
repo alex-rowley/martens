@@ -3,6 +3,7 @@
 """The setup script."""
 
 from setuptools import setup, find_packages
+from pkg_resources import parse_requirements
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
@@ -11,7 +12,7 @@ with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
 with open("requirements.txt") as requirements_file:
-    requirements = requirements_file.read().splitlines()
+    requirements = [str(req) for req in parse_requirements(f)]
 
 test_requirements = ['pytest>=3', ]
 
