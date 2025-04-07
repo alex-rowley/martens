@@ -10,7 +10,8 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = [ ]
+with open("requirements.txt") as f:
+    requirements = f.read().splitlines()
 
 test_requirements = ['pytest>=3', ]
 
@@ -40,5 +41,5 @@ setup(
     tests_require=test_requirements,
     url='https://github.com/arowley-ai/martens',
     version='0.3.9',
-    zip_safe=False,
+    zip_safe=False
 )
