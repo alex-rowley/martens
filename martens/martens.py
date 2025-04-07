@@ -1,5 +1,4 @@
 """Main module."""
-import deprecation
 import openpyxl as op
 import xlrd
 import csv
@@ -100,7 +99,6 @@ class Dataset(dict):
         assert len(result) == self.record_length, "Some returns are not same length as record length"
         return self.__with__({name if name is not None else mutation.__name__: result})
 
-
     def window_mutate(self, mutation, window, name=None):
         result = self.window_apply(mutation, window=window)
         return self.__with__({name if name is not None else mutation.__name__: result})
@@ -132,6 +130,27 @@ class Dataset(dict):
                  ), None) for rec in rtn.records]
         return rtn.select(grouping_cols + [prefix + h for h in new_headings])
 
+    def series_list(self, names):
+        return [self[name] for name in names]
+
+    def graph_constructor(self, x_name, y_names, colours=None, as_secondary=False):
+        rtn_values, rtn_names = [], []
+        sec = 'sec_' if as_secondary else ''
+        x_values = self[x_name]
+        for y_name in y_names:
+            if colours is not None:
+                data = self.column_squish(grouping_cols=[x_name], headings=colours, values=y_name, prefix=y_name + '_')
+                rtn_values.extend([data[c] for c in data.columns if c != x_name])
+                rtn_names.extend([c for c in data.columns if c != x_name])
+                x_values = data[x_name]
+            else:
+                rtn_values.append(self[y_name])
+                rtn_names.append(y_name)
+        rtn = {sec + 'y_values': rtn_values, sec + 'y_names': rtn_names}
+        if not as_secondary:
+            rtn['x_values'] = x_values
+        return rtn
+
     # This is kind of the reverse pivot where you stack lots of headings on top of each other
     def headings_squish(self, grouping_cols, headings, value_name, heading_name):
         return stack([Dataset({
@@ -159,7 +178,6 @@ class Dataset(dict):
         return self.mutate(mutation, 'temp_col_mutate_stack') \
             .column_stack('temp_col_mutate_stack', new_name, save_len, enumeration) \
             .drop(['temp_col_mutate_stack'])
-
 
     # TODO: Check if the records are all dicts
     # This function is great for stretching out record data into
@@ -201,6 +219,11 @@ class Dataset(dict):
                 in_scope_columns.append(col)
         return rtn
 
+    def mutate_explode(self, mutation):
+        return self.mutate(mutation, 'temp_col_mutate_explode') \
+            .json_explode('temp_col_mutate_stack') \
+            .drop(['temp_col_mutate_stack'])
+
     # Adding a simple ID to a dataset
     def with_id(self, name='id'):
         return self.__with__({name: list(range(self.__entry_length__))})
@@ -230,7 +253,7 @@ class Dataset(dict):
 
     # Neat little sorting function
     def sort(self, names, reverse=False):
-        assert isinstance(names,list), "Type error: Not a list of names"
+        assert isinstance(names, list), "Type error: Not a list of names"
         assert all([name in self.columns for name in names]), "Columns do not match"
         sort_order = names + [col for col in self.columns if col not in names]
         sorted_data = sorted(zip(*[self[col] for col in sort_order]), reverse=reverse, key=lambda x: x[0:len(names)])
@@ -272,10 +295,6 @@ class Dataset(dict):
 
     def unique_by(self, names):
         return Dataset({name: list(val) for name, val in zip(names, zip(*sorted(set(zip(*[self[n] for n in names])))))})
-
-    @deprecation.deprecated("Use merge instead")
-    def merge_by_key(self, right, key_column, how='inner'):
-        return self.merge(right, on=[key_column], how=how)
 
     def merge(self, right, on=None, how='inner'):
 
@@ -388,17 +407,29 @@ class Dataset(dict):
 
     def __str__(self):
         columns = self.columns
-        print_widths = [max([len(val.__str__()) for val in self[col]] + [len(col)]) + 1 for col in columns]
+        print_widths = [max([len(str(val)) for val in self[col]] + [len(col)]) + 1 for col in columns]
+
         rtn = '|'
         for column, width in zip(columns, print_widths):
-            rtn = rtn + column.ljust(width) + '|'
-        rtn = rtn + '\n'
+            rtn += column.ljust(width) + '|'
+        rtn += '\n'
+
         for record in self.records:
-            rtn = rtn + '|'
+            rtn += '|'
             for column, width in zip(columns, print_widths):
-                rtn = rtn + record[column].__str__().ljust(width) + '|'
-            rtn = rtn + '\n'
+                value = record[column]
+                str_value = str(value)
+                if isinstance(value, (int, float, datetime.date, datetime.date)):
+                    rtn += str_value.rjust(width)
+                else:
+                    rtn += str_value.ljust(width)
+                rtn += '|'
+            rtn += '\n'
+
         return rtn
+
+    def first_n(self, n=10):
+        return self.with_id('__id__').filter(lambda __id__: __id__ < n).drop(['__id__'])
 
     @property
     def headings_camel_to_snake(self):
@@ -472,7 +503,7 @@ class SourceFile:
             self.from_row, self.from_col, self.to_row, self.to_col = parse_excel_range(using_range)
 
     @property
-    def dataset(self):
+    def dataset(self) -> Dataset:
         return getattr(self, self.file_type)
 
     def conditional_xls_float_to_date(self, value, book, index):
