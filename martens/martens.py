@@ -137,17 +137,18 @@ class Dataset(dict):
         rtn_values, rtn_names = [], []
         data = self.sort(x_sort_keys) if x_sort_keys else self
         sec = 'sec_' if as_secondary else ''
-        x_values = data[x_name]
         for y_name in y_names:
             if colours is not None:
                 grouping_cols = [x_name]+x_sort_keys if x_sort_keys is not None else [x_name]
                 data = data.column_squish(grouping_cols=grouping_cols, headings=colours, values=y_name, prefix=y_name + '_')
+                if x_sort_keys:
+                    data = data.sort(x_sort_keys)
                 rtn_values.extend([data[c] for c in data.columns if c != x_name and c not in x_sort_keys])
                 rtn_names.extend([c for c in data.columns if c != x_name and c not in x_sort_keys])
-                x_values = data[x_name]
             else:
                 rtn_values.append(self[y_name])
                 rtn_names.append(y_name)
+            x_values = data[x_name]
         rtn = {sec + 'y_values': rtn_values, sec + 'y_names': rtn_names}
         if not as_secondary:
             rtn['x_values'] = x_values
