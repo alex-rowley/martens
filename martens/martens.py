@@ -140,7 +140,7 @@ class Dataset(dict):
         for y_name in y_names:
             if colours is not None:
                 grouping_cols = [x_name]+x_sort_keys if x_sort_keys is not None else [x_name]
-                data = data.column_squish(grouping_cols=grouping_cols, headings=colours, values=y_name, prefix=y_name + '_')
+                data = data.column_squish(grouping_cols=grouping_cols, headings=colours, values=y_name, prefix=colours + '_')
                 if x_sort_keys:
                     data = data.sort(x_sort_keys)
                 rtn_values.extend([data[c] for c in data.columns if c != x_name and c not in x_sort_keys])
