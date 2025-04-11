@@ -133,15 +133,15 @@ class Dataset(dict):
     def series_list(self, names):
         return [self[name] for name in names]
 
-    def graph_constructor(self, x_name, y_names, colours=None, as_secondary=False):
+    def chart_constructor(self, x_name, y_names, x_sort_keys=None, colours=None, as_secondary=False):
         rtn_values, rtn_names = [], []
         sec = 'sec_' if as_secondary else ''
-        x_values = self[x_name]
+        x_values = self[x_name].sort(x_sort_keys)
         for y_name in y_names:
             if colours is not None:
-                data = self.column_squish(grouping_cols=[x_name], headings=colours, values=y_name, prefix=y_name + '_')
-                rtn_values.extend([data[c] for c in data.columns if c != x_name])
-                rtn_names.extend([c for c in data.columns if c != x_name])
+                data = self.column_squish(grouping_cols=[x_name]+x_sort_keys, headings=colours, values=y_name, prefix=y_name + '_').sort(x_sort_keys)
+                rtn_values.extend([data[c] for c in data.columns if c != x_name and c not in x_sort_keys])
+                rtn_names.extend([c for c in data.columns if c != x_name and c not in x_sort_keys])
                 x_values = data[x_name]
             else:
                 rtn_values.append(self[y_name])
