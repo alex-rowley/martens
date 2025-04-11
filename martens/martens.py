@@ -135,11 +135,13 @@ class Dataset(dict):
 
     def chart_constructor(self, x_name, y_names, x_sort_keys=None, colours=None, as_secondary=False):
         rtn_values, rtn_names = [], []
+        data = self.sort(x_sort_keys) if x_sort_keys else self
         sec = 'sec_' if as_secondary else ''
-        x_values = self[x_name].sort(x_sort_keys)
+        x_values = data[x_name]
         for y_name in y_names:
             if colours is not None:
-                data = self.column_squish(grouping_cols=[x_name]+x_sort_keys, headings=colours, values=y_name, prefix=y_name + '_').sort(x_sort_keys)
+                grouping_cols = [x_name]+x_sort_keys if x_sort_keys is not None else [x_name]
+                data = data.column_squish(grouping_cols=grouping_cols, headings=colours, values=y_name, prefix=y_name + '_')
                 rtn_values.extend([data[c] for c in data.columns if c != x_name and c not in x_sort_keys])
                 rtn_names.extend([c for c in data.columns if c != x_name and c not in x_sort_keys])
                 x_values = data[x_name]
