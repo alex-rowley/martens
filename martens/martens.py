@@ -133,22 +133,28 @@ class Dataset(dict):
     def series_list(self, names):
         return [self[name] for name in names]
 
+    def pivot_chart_constructor(self, x_name, y_name, colour, x_sort_keys=None, colour_sort_keys=None, as_secondary=False):
+        sec = 'sec_' if as_secondary else ''
+        grouping_cols = colour_sort_keys + [colour] if colour_sort_keys is not None else [colour]
+        colours = self.group_by(grouping_cols, other_cols=[])[colour]
+        grouping_cols = x_sort_keys + [x_name] if x_sort_keys is not None else [x_name]
+        x_values = self.group_by(grouping_cols, other_cols=[])[x_name]
+        rtn_values = []
+        rtn_names = colours
+        for c in colours:
+            data = [self.filter(c, colour).filter(x, x_name) for x in x_values]
+            rtn_values.append([d.first[y_name] if d.record_length > 0 else None for d in data])
+        rtn = {sec + 'y_values': rtn_values, sec + 'y_names': rtn_names}
+        if not as_secondary:
+            rtn['x_values'] = x_values
+        return rtn
+
     def chart_constructor(self, x_name, y_names, x_sort_keys=None, colours=None, as_secondary=False):
-        rtn_values, rtn_names = [], []
         data = self.sort(x_sort_keys) if x_sort_keys else self
         sec = 'sec_' if as_secondary else ''
-        for y_name in y_names:
-            if colours is not None:
-                grouping_cols = [x_name]+x_sort_keys if x_sort_keys is not None else [x_name]
-                data = data.column_squish(grouping_cols=grouping_cols, headings=colours, values=y_name, prefix=colours + '_')
-                if x_sort_keys:
-                    data = data.sort(x_sort_keys)
-                rtn_values.extend([data[c] for c in data.columns if c != x_name and c not in x_sort_keys])
-                rtn_names.extend([c for c in data.columns if c != x_name and c not in x_sort_keys])
-            else:
-                rtn_values.append(self[y_name])
-                rtn_names.append(y_name)
-            x_values = data[x_name]
+        rtn_values = [data[y_name] for y_name in y_names]
+        rtn_names = y_names
+        x_values = data[x_name]
         rtn = {sec + 'y_values': rtn_values, sec + 'y_names': rtn_names}
         if not as_secondary:
             rtn['x_values'] = x_values
@@ -456,7 +462,7 @@ class Dataset(dict):
                 zip(*[self[col] for col in self])]
 
     @property
-    def first(self):
+    def first(self) -> dict:
         return {col: self[col][0] for col in self}
 
     @property
