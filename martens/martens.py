@@ -271,9 +271,8 @@ class Dataset(dict):
 
     def group_by(self, grouping_cols, other_cols=None, count=None):
         assert isinstance(grouping_cols, list), "Type error: grouping_col should be a list"
-        if other_cols is None:
-            other_cols = [col for col in self.columns if col not in grouping_cols]
-        assert isinstance(other_cols, list), "Type error: other_cols should be a list or None"
+        oth_cols = other_cols if other_cols is not None else []
+        isinstance(oth_cols, list), "Type error: other_cols should be a list or None"
         # assert isinstance(count, str), "Type error: with_count should be a string"
 
         sorts = self.sort(grouping_cols)
@@ -281,20 +280,20 @@ class Dataset(dict):
         last_grouped = None
         rtn = dict()
 
-        for col in grouping_cols + other_cols + ([count] if count is not None else []):
+        for col in grouping_cols + oth_cols + ([count] if count is not None else []):
             rtn[col] = list()
 
         for rec in sorts.records:
             grouped = [rec[g] for g in grouping_cols]
             if grouped == last_grouped:
-                for o in other_cols:
+                for o in oth_cols:
                     rtn[o][-1].append(rec[o])
                 if count is not None:
                     rtn[count][-1] = rtn[count][-1] + 1
             else:
                 for g in grouping_cols:
                     rtn[g].append(rec[g])
-                for o in other_cols:
+                for o in oth_cols:
                     rtn[o].append([rec[o]])
                 if count is not None:
                     rtn[count].append(1)
