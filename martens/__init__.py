@@ -2,6 +2,6 @@
 
 __author__ = 'Alex Rowley'
 __email__ = ''
-__version__ = '0.3.20'
+__version__ = '0.3.21'
 
 from .martens import Dataset, SourceFile, stack, initialise, average
