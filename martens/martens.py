@@ -553,7 +553,7 @@ class SourceFile:
             rows = [next(reader, None) for _ in range(row_count)]
             rows = [r for r in rows if r is not None]
         else:
-            rows = [row for row in reader]
+            rows = [row for row in reader if row and any(cell.strip() for cell in row)]
         rawdata = [list(d) for d in zip(*rows)][self.from_col:self.to_col]
         return Dataset({h: d for h, d in zip(headers, rawdata)})
 
