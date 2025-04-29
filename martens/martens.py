@@ -66,9 +66,14 @@ class Dataset(dict):
     def window_apply(self, func, window=1):
         assert callable(func), "Window apply requires a callable argument"
         params = inspect.signature(func).parameters
-        assert len(params) == 1, "Window function can only accept one argument"
-        name = next(iter(params))
-        return [func(self[name][max(0, i - window + 1):i + 1]) for i in range(self.record_length)]
+        assert all(name in self for name in params), "All function parameters must match keys in self"
+        return [
+            func(**{
+                name: self[name][max(0, i - window + 1):i + 1]
+                for name in params
+            })
+            for i in range(self.record_length)
+        ]
 
     def rolling_apply(self, func, grouping_cols=None):
         assert callable(func), "Rolling apply requires a callable argument"
