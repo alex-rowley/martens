@@ -6,6 +6,9 @@ import json
 import datetime
 import re
 import inspect
+import tempfile
+import os
+import io
 
 
 # Main purpose of martens, dataset class
@@ -561,6 +564,40 @@ class SourceFile:
             rows = [row for row in reader if row and any(cell.strip() for cell in row)]
         rawdata = [list(d) for d in zip(*rows)][self.from_col:self.to_col]
         return Dataset({h: d for h, d in zip(headers, rawdata)})
+
+
+class SourceStream(SourceFile):
+    def __init__(self, stream, file_type="csv", sheet_name="Sheet1", from_row=0, from_col=0,
+                 to_row=None, to_col=None, date_columns=None, using_range=None):
+        # Ensure file_type is lowercase and used to determine suffix
+        file_type = file_type.lower()
+        suffix = f".{file_type}"
+        mode = 'w+b' if isinstance(stream, io.BytesIO) else 'w+'
+
+        # Create a temporary file with correct suffix
+        self._temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix, mode=mode)
+        self._temp_file.write(stream.getvalue())
+        self._temp_file.flush()
+        self._temp_file.close()
+
+        # Call the original SourceFile constructor
+        super().__init__(
+            file_path=self._temp_file.name,
+            sheet_name=sheet_name,
+            from_row=from_row,
+            from_col=from_col,
+            file_type=file_type,
+            to_row=to_row,
+            to_col=to_col,
+            date_columns=date_columns,
+            using_range=using_range
+        )
+
+    def __del__(self):
+        try:
+            os.remove(self._temp_file.name)
+        except Exception:
+            pass
 
 
 def __sanitise_column_name__(column_name):
