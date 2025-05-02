@@ -118,15 +118,14 @@ class Dataset(dict):
         assert len(result) == self.record_length, "Some returns are not same length as record length"
         return self.__with__({name if name is not None else mutation.__name__: result})
 
+    # TODO: This will definitely be bugged if the user doesn't sort using the group_bys first
     def window_mutate(self, mutation, window, grouping_cols=None, name=None):
-        sorted_df = self.sort(names=grouping_cols) if grouping_cols is not None else self
-        result = sorted_df.window_apply(mutation, grouping_cols=grouping_cols, window=window)
-        return sorted_df.__with__({name if name is not None else mutation.__name__: result})
+        result = self.window_apply(mutation, grouping_cols=grouping_cols, window=window)
+        return self.__with__({name if name is not None else mutation.__name__: result})
 
     def rolling_mutate(self, mutation, grouping_cols=None, name=None):
-        sorted_df = self.sort(names=grouping_cols) if grouping_cols is not None else self
-        result = sorted_df.rolling_apply(func=mutation, grouping_cols=grouping_cols)
-        return sorted_df.__with__({name if name is not None else mutation.__name__: result})
+        result = self.rolling_apply(func=mutation, grouping_cols=grouping_cols)
+        return self.__with__({name if name is not None else mutation.__name__: result})
 
     def replace(self, mutation, included_names=None, excluded_names=None):
         if included_names is not None:
