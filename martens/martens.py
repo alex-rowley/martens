@@ -254,8 +254,13 @@ class Dataset(dict):
             .drop(['temp_col_mutate_stack'])
 
     # Adding a simple ID to a dataset
-    def with_id(self, name='id'):
-        return self.__with__({name: list(range(self.__entry_length__))})
+    def with_id(self, name='id', grouping_cols=None):
+        if grouping_cols is not None:
+            grouped_counts = self.group_by(grouping_cols, count='count')['count']
+            rtn = [x for g in grouped_counts for x in range(g)]
+        else:
+            rtn = list(range(self.__entry_length__))
+        return self.__with__({name: rtn})
 
     # Adding a simple constant to a dataset
     def with_constant(self, value, name):
