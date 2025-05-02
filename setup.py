@@ -40,6 +40,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/arowley-ai/martens',
-    version='0.3.26',
+    version='0.3.27',
     zip_safe=False
 )
