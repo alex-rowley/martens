@@ -66,17 +66,28 @@ class Dataset(dict):
             "Function arguments do not correspond to available columns"
         return func(**{param: self[param] for param in params})
 
-    def window_apply(self, func, window=1):
+    # TODO: This will definitely be bugged if the user doesn't sort using the group_bys first
+    def window_apply(self, func, window=1, grouping_cols=None):
         assert callable(func), "Window apply requires a callable argument"
-        params = inspect.signature(func).parameters
+        params = list(inspect.signature(func).parameters)
         assert all(name in self for name in params), "All function parameters must match keys in self"
-        return [
-            func(**{
-                name: self[name][max(0, i - window + 1):i + 1]
-                for name in params
-            })
-            for i in range(self.record_length)
-        ]
+        if grouping_cols is not None:
+            return [
+                func(**{
+                    name: sub_data[name][max(0, i - window + 1):i + 1]
+                    for name in params
+                })
+                for sub_data in [Dataset(r) for r in self.group_by(grouping_cols).select(params).records]
+                for i in range(sub_data.record_length)
+            ]
+        else:
+            return [
+                func(**{
+                    name: self[name][max(0, i - window + 1):i + 1]
+                    for name in params
+                })
+                for i in range(self.record_length)
+            ]
 
     def rolling_apply(self, func, grouping_cols=None):
         assert callable(func), "Rolling apply requires a callable argument"
@@ -107,13 +118,15 @@ class Dataset(dict):
         assert len(result) == self.record_length, "Some returns are not same length as record length"
         return self.__with__({name if name is not None else mutation.__name__: result})
 
-    def window_mutate(self, mutation, window, name=None):
-        result = self.window_apply(mutation, window=window)
-        return self.__with__({name if name is not None else mutation.__name__: result})
+    def window_mutate(self, mutation, window, grouping_cols=None, name=None):
+        sorted_df = self.sort(names=grouping_cols) if grouping_cols is not None else self
+        result = sorted_df.window_apply(mutation, grouping_cols=grouping_cols, window=window)
+        return sorted_df.__with__({name if name is not None else mutation.__name__: result})
 
     def rolling_mutate(self, mutation, grouping_cols=None, name=None):
-        result = self.rolling_apply(func=mutation, grouping_cols=grouping_cols)
-        return self.__with__({name if name is not None else mutation.__name__: result})
+        sorted_df = self.sort(names=grouping_cols) if grouping_cols is not None else self
+        result = sorted_df.rolling_apply(func=mutation, grouping_cols=grouping_cols)
+        return sorted_df.__with__({name if name is not None else mutation.__name__: result})
 
     def replace(self, mutation, included_names=None, excluded_names=None):
         if included_names is not None:
