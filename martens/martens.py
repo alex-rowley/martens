@@ -119,8 +119,8 @@ class Dataset(dict):
         return self.__with__({name if name is not None else mutation.__name__: result})
 
     # TODO: This will definitely be bugged if the user doesn't sort using the group_bys first
-    def window_mutate(self, mutation, window, grouping_cols=None, name=None):
-        result = self.window_apply(mutation, grouping_cols=grouping_cols, window=window)
+    def window_mutate(self, mutation, window, grouping_cols=None, name=None, chunk=False):
+        result = self.window_apply(mutation, grouping_cols=grouping_cols, window=window, chunk=chunk)
         return self.__with__({name if name is not None else mutation.__name__: result})
 
     def rolling_mutate(self, mutation, grouping_cols=None, name=None):
