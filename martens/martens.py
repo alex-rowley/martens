@@ -67,7 +67,7 @@ class Dataset(dict):
         return func(**{param: self[param] for param in params})
 
     # TODO: This will definitely be bugged if the user doesn't sort using the group_bys first
-    def window_apply(self, func, window=1, grouping_cols=None):
+    def window_apply(self, func, window=1, grouping_cols=None, chunk=False):
         assert callable(func), "Window apply requires a callable argument"
         params = list(inspect.signature(func).parameters)
         assert all(name in self for name in params), "All function parameters must match keys in self"
@@ -78,7 +78,7 @@ class Dataset(dict):
                     for name in params
                 })
                 for sub_data in [Dataset(r) for r in self.group_by(grouping_cols).select(params).records]
-                for i in range(sub_data.record_length)
+                for i in range(window-1 if chunk else 0, sub_data.record_length, window if chunk else 1)
             ]
         else:
             return [
@@ -86,7 +86,7 @@ class Dataset(dict):
                     name: self[name][max(0, i - window + 1):i + 1]
                     for name in params
                 })
-                for i in range(self.record_length)
+                for i in range(window-1 if chunk else 0, self.record_length, window if chunk else 1)
             ]
 
     def rolling_apply(self, func, grouping_cols=None):
