@@ -537,14 +537,14 @@ class SourceFile:
 
     @property
     def dataset(self) -> Dataset:
-        return getattr(self, self.file_type)
+        return getattr(self, 'file_read_' + self.file_type)
 
     def conditional_xls_float_to_date(self, value, book, index):
         return datetime.datetime(
             *xlrd.xldate_as_tuple(value, book.datemode)).date() if index in self.date_columns else value
 
     @property
-    def xlsx(self):
+    def file_read_xlsx(self):
         workbook = op.load_workbook(filename=self.file_path, data_only=True)
         sheet = workbook[self.sheet_name]
         trim_col = len([x for x in sheet.columns]) if self.to_col is None else self.to_col
@@ -555,7 +555,7 @@ class SourceFile:
         })
 
     @property
-    def xls(self):
+    def file_read_xls(self):
         book = xlrd.open_workbook(self.file_path)
         sheet = book.sheet_by_name(self.sheet_name)
         col_limit = sheet.ncols if self.to_col is None else self.to_col
@@ -569,7 +569,7 @@ class SourceFile:
         })
 
     @property
-    def csv(self):
+    def file_read_csv(self):
         reader = csv.reader(open(self.file_path))
         _ = [next(reader, None) for _ in range(self.from_row)]
         headers = [__sanitise_column_name__(w) for w in next(reader, None)][self.from_col:self.to_col]
@@ -581,6 +581,10 @@ class SourceFile:
             rows = [row for row in reader if row and any(cell.strip() for cell in row)]
         rawdata = [list(d) for d in zip(*rows)][self.from_col:self.to_col]
         return Dataset({h: d for h, d in zip(headers, rawdata)})
+
+    @property
+    def file_read_json(self):
+        return Dataset(json.loads(open(self.file_path).read()))
 
 
 class SourceStream(SourceFile):
