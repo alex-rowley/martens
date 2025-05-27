@@ -256,11 +256,19 @@ class Dataset(dict):
     # Adding a simple ID to a dataset
     def with_id(self, name='id', grouping_cols=None):
         if grouping_cols is not None:
-            grouped_counts = self.group_by(grouping_cols, count='count')['count']
-            rtn = [x for g in grouped_counts for x in range(g)]
+            ids = []
+            current_group = None
+            current_id = 0
+            for i in range(self.record_length):
+                group_key = tuple(self[col][i] for col in grouping_cols)
+                if group_key != current_group:
+                    current_group = group_key
+                    current_id = 0
+                ids.append(current_id)
+                current_id += 1
         else:
-            rtn = list(range(self.__entry_length__))
-        return self.__with__({name: rtn})
+            ids = list(range(self.record_length))
+        return self.__with__({name: ids})
 
     # Adding a simple constant to a dataset
     def with_constant(self, value, name):
@@ -504,10 +512,6 @@ class Dataset(dict):
     @property
     def pretty(self):
         return json.dumps(self, indent=4)
-
-    @property
-    def __entry_length__(self):
-        return len(self[[x for x in self][0]])
 
     @property
     def __existing__(self):
