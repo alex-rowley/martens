@@ -428,8 +428,8 @@ class Dataset(dict):
     def generator(self, names=None):
         return zip(*[self[name] for name in (names if names is not None else self.columns)])
 
-    def write_csv(self, file_path):
-        with open(file_path, 'w', newline='') as csvfile:
+    def write_csv(self, file_path, mode='w'):
+        with open(file_path, mode, newline='') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=self.columns)
             writer.writeheader()
             for record in self.records:
