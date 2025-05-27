@@ -72,20 +72,20 @@ class Dataset(dict):
         params = list(inspect.signature(func).parameters)
         assert all(name in self for name in params), "All function parameters must match keys in self"
         if grouping_cols is not None:
-            return [
-                func(**{
-                    name: sub_data[name][max(0, i - window + 1):i + 1]
-                    for name in params
-                })
-                for sub_data in [Dataset(r) for r in self.group_by(grouping_cols).select(params).records]
-                for i in range(sub_data.record_length)
-            ]
+            results = []
+            current_group = None
+            group_start = 0
+            for i in range(self.record_length):
+                group_key = tuple(self[col][i] for col in grouping_cols)
+                if group_key != current_group:
+                    current_group = group_key
+                    group_start = i
+                window_start = max(group_start, i - window + 1)
+                results.append(func(**{name: self[name][window_start:i + 1] for name in params}))
+            return results
         else:
             return [
-                func(**{
-                    name: self[name][max(0, i - window + 1):i + 1]
-                    for name in params
-                })
+                func(**{name: self[name][max(0, i - window + 1):i + 1] for name in params})
                 for i in range(self.record_length)
             ]
 
