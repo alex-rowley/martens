@@ -660,8 +660,8 @@ def average(input_list):
 def stack(list_of_datasets: list):
     assert isinstance(list_of_datasets, list), "Type error: Not a list"
     assert all([isinstance(element, Dataset) for element in list_of_datasets]), "Type error : Not a list of Datasets"
-    cols = sorted([x for x in list_of_datasets[0]])
-    assert (all([cols == sorted([x for x in y]) for y in list_of_datasets])), "Available columns do not correspond"
+    assert (all([sorted([x for x in list_of_datasets[0]]) == sorted([x for x in y]) for y in list_of_datasets])), "Available columns do not correspond"
+    cols = [x for x in list_of_datasets[0]]
     return Dataset({col: [val for element in list_of_datasets for val in element[col]] for col in cols})
 
 
