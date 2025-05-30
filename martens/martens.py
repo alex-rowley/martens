@@ -524,7 +524,7 @@ class Dataset(dict):
 # A class used to parse data from source files and access the Dataset
 class SourceFile:
 
-    def __init__(self, file_path, sheet_name="Sheet1", from_row=0, from_col=0,
+    def __init__(self, file_path, sheet_name=None, from_row=0, from_col=0,
                  file_type=None, to_row=None, to_col=None, date_columns=None, using_range=None):
         self.file_path = file_path
         file_tokens = file_path.split('.')
@@ -550,7 +550,7 @@ class SourceFile:
     @property
     def file_read_xlsx(self):
         workbook = op.load_workbook(filename=self.file_path, data_only=True)
-        sheet = workbook[self.sheet_name]
+        sheet = workbook[self.sheet_name] if self.sheet_name else workbook.worksheets[0]
         trim_col = len([x for x in sheet.columns]) if self.to_col is None else self.to_col
         return Dataset({
             __sanitise_column_name__(col[self.from_row].value):
@@ -561,14 +561,15 @@ class SourceFile:
     @property
     def file_read_xls(self):
         book = xlrd.open_workbook(self.file_path)
-        sheet = book.sheet_by_name(self.sheet_name)
+        sheet = book.sheet_by_name(self.sheet_name) if self.sheet_name else book.sheet_by_index(0)
         col_limit = sheet.ncols if self.to_col is None else self.to_col
         columns = [sheet.col_values(col) for col in range(self.from_col, col_limit)]
         return Dataset({
             __sanitise_column_name__(col[self.from_row]):
                 [
                     self.conditional_xls_float_to_date(cell, book, index)
-                    if cell != '' else None for cell in col[self.from_row + 1:self.to_row]]
+                    if cell != '' else None for cell in col[self.from_row + 1:self.to_row]
+                ]
             for index, col in enumerate(columns)
         })
 
@@ -660,8 +661,8 @@ def average(input_list):
 def stack(list_of_datasets: list):
     assert isinstance(list_of_datasets, list), "Type error: Not a list"
     assert all([isinstance(element, Dataset) for element in list_of_datasets]), "Type error : Not a list of Datasets"
-    assert (all([sorted([x for x in list_of_datasets[0]]) == sorted([x for x in y]) for y in list_of_datasets])), "Available columns do not correspond"
     cols = [x for x in list_of_datasets[0]]
+    assert (all([sorted(cols) == sorted([x for x in y]) for y in list_of_datasets])), "Available columns do not correspond"
     return Dataset({col: [val for element in list_of_datasets for val in element[col]] for col in cols})
 
 
