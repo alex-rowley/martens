@@ -54,10 +54,16 @@ class Dataset(dict):
     def apply(self, func):
         assert callable(func), "Apply requires a callable argument"
         params = inspect.signature(func).parameters
-        assert all(param in self for param in params), \
-            "Function arguments do not correspond to available columns"
-        return [func(**{arg: val for arg, val in zip(params, arg_vals)}) for arg_vals in
-                zip(*[self[param] for param in params])]
+        required = [
+            name for name, param in params.items()
+            if param.default is param.empty
+            and param.kind in (param.POSITIONAL_OR_KEYWORD, param.KEYWORD_ONLY)
+        ]
+        assert all(param in self for param in required), \
+            f"Missing required argument(s): {[p for p in required if p not in self]}"
+        arg_names = [name for name in params if name in self]
+        arg_columns = [self[name] for name in arg_names]
+        return [func(**dict(zip(arg_names, row))) for row in zip(*arg_columns)]
 
     def long_apply(self, func):
         assert callable(func), "Long apply requires a callable argument"
