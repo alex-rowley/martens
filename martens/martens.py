@@ -10,6 +10,8 @@ import tempfile
 import os
 import io
 
+from itertools import zip_longest
+
 
 # Main purpose of martens, dataset class
 class Dataset(dict):
@@ -581,17 +583,22 @@ class SourceFile:
 
     @property
     def file_read_csv(self):
-        reader = csv.reader(open(self.file_path))
-        _ = [next(reader, None) for _ in range(self.from_row)]
-        headers = [__sanitise_column_name__(w) for w in next(reader, None)][self.from_col:self.to_col]
-        if self.to_row:
-            row_count = self.to_row - self.from_row
-            rows = [next(reader, None) for _ in range(row_count)]
-            rows = [r for r in rows if r is not None]
-        else:
-            rows = [row for row in reader if row and any(cell.strip() for cell in row)]
-        rawdata = [list(d) for d in zip(*rows)][self.from_col:self.to_col]
-        return Dataset({h: d for h, d in zip(headers, rawdata)})
+        with open(self.file_path, newline='') as f:
+            reader = csv.reader(f)
+            for _ in range(self.from_row):
+                next(reader, None)
+            header_row = next(reader, None)
+            if not header_row:
+                raise ValueError(f"Header row is missing or empty for {self.file_path}")
+            headers = [__sanitise_column_name__(w) for w in header_row][self.from_col:self.to_col]
+            if self.to_row:
+                row_count = self.to_row - self.from_row
+                rows = [next(reader, None) for _ in range(row_count)]
+                rows = [r for r in rows if r is not None]
+            else:
+                rows = [row for row in reader if row and any(cell.strip() for cell in row)]
+            rawdata = [list(d) for d in zip_longest(*rows, fillvalue='')][self.from_col:self.to_col]
+            return Dataset({h: d for h, d in zip(headers, rawdata)})
 
     @property
     def file_read_json(self):
