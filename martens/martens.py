@@ -65,7 +65,10 @@ class Dataset(dict):
             f"Missing required argument(s): {[p for p in required if p not in self]}"
         arg_names = [name for name in params if name in self]
         arg_columns = [self[name] for name in arg_names]
-        return [func(**dict(zip(arg_names, row))) for row in zip(*arg_columns)]
+        if not arg_names:
+            return [func() for _ in range(self.record_length)]
+        else:
+            return [func(**dict(zip(arg_names, row))) for row in zip(*arg_columns)]
 
     def long_apply(self, func):
         assert callable(func), "Long apply requires a callable argument"
