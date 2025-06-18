@@ -480,6 +480,13 @@ class Dataset(dict):
     def first_n(self, n=10):
         return Dataset({col: self[col][0:n] for col in self})
 
+    # Unstack dataset according to the result of some function
+    def unstack(self, func):
+        keys = [int(x) for x in self.apply(func)]
+        unique_keys = sorted(set(keys))
+        index_groups = {k: [i for i, val in enumerate(keys) if val == k] for k in unique_keys}
+        return [Dataset({col: [self[col][i] for i in index_groups[k]] for col in self.keys()}) for k in unique_keys]
+
     @property
     def headings_camel_to_snake(self):
         return Dataset({__camel_to_snake__(col): self[col] for col in self.columns})
