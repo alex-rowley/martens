@@ -301,7 +301,10 @@ class Dataset(dict):
             names = list(names)
         except TypeError:
             raise TypeError(f"'names' must be an iterable of strings, got {type(names).__name__}")
-        return Dataset({name: self[name] for name in names if allow_missing or name in self})
+        if allow_missing:
+            return Dataset({name: self[name] for name in names if name in self})
+        else:
+            return Dataset({name: self[name] for name in names})
 
     def drop(self, names):
         assert isinstance(names, list), "Type error: Not a list of names"
