@@ -296,9 +296,12 @@ class Dataset(dict):
     def __with__(self, new):
         return Dataset({**self.__existing__, **new})
 
-    def select(self, names):
-        assert isinstance(names, list), "Type error: Not a list of names"
-        return Dataset({name: self[name] for name in names})
+    def select(self, names, allow_missing=False):
+        try:
+            names = list(names)
+        except TypeError:
+            raise TypeError(f"'names' must be an iterable of strings, got {type(names).__name__}")
+        return Dataset({name: self[name] for name in names if allow_missing or name in self})
 
     def drop(self, names):
         assert isinstance(names, list), "Type error: Not a list of names"
