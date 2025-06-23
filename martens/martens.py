@@ -9,6 +9,7 @@ import inspect
 import tempfile
 import os
 import io
+import random
 
 from itertools import zip_longest
 
@@ -59,7 +60,7 @@ class Dataset(dict):
         required = [
             name for name, param in params.items()
             if param.default is param.empty
-            and param.kind in (param.POSITIONAL_OR_KEYWORD, param.KEYWORD_ONLY)
+               and param.kind in (param.POSITIONAL_OR_KEYWORD, param.KEYWORD_ONLY)
         ]
         assert all(param in self for param in required), \
             f"Missing required argument(s): {[p for p in required if p not in self]}"
@@ -488,6 +489,10 @@ class Dataset(dict):
 
     def first_n(self, n=10):
         return Dataset({col: self[col][0:n] for col in self})
+
+    def random_n(self, n=10, seed=0):
+        random.seed(seed)
+        return self.mutate(lambda: random.random(), '__random__').sort(['__random__']).drop(['__random__']).first_n(n)
 
     # Unstack dataset according to the result of some function
     def unstack(self, func):
