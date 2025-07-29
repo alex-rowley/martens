@@ -517,6 +517,9 @@ class Dataset(dict):
 
         return Dataset({col: try_cast_column(self[col]) for col in self})
 
+    def column_lookup(self, values_col, name):
+        return self.__with__({name: [rec.get(key) for key, rec in zip(self[values_col], self.records)]})
+
     @property
     def infer_types(self):
         return self.guess_types_with_template()
