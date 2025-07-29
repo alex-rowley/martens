@@ -503,7 +503,11 @@ class Dataset(dict):
     def guess_types_with_template(self, date_formats: list[str] = None, datetime_formats: list[str] = None) -> "Dataset":
         date_formats = date_formats or ["%d-%m-%Y", "%d/%m/%Y"]
         datetime_formats = datetime_formats or ["%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S"]
-        casters = [int, float, lambda v: {"true": True, "1": True, "false": False, "0": False}[v.lower()]]
+        casters = [
+            lambda v: int(v) if "." not in v else __raise__(ValueError),
+            float,
+            lambda v: {"true": True, "1": True, "false": False, "0": False}[v.lower()],
+        ]
         casters.extend([lambda v: datetime.datetime.strptime(v, fmt).date() for fmt in date_formats])
         casters.extend([lambda v: datetime.datetime.strptime(v, fmt) for fmt in datetime_formats])
 
@@ -707,6 +711,10 @@ def initialise(id_length, id_name='id'):
 
 def average(input_list):
     return sum(input_list) / len(input_list)
+
+
+def __raise__(ex):
+    raise ex
 
 
 def stack(list_of_datasets: list):

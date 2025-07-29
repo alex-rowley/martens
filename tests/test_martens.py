@@ -50,5 +50,5 @@ def test_csv_import(file_path):
 def test_csv_import_from_stringio(file_path):
     with open(file_path, "r", encoding="utf-8") as f:
         stream = StringIO(f.read())
-        data = martens.SourceStream(stream, file_type="csv", from_row=3).dataset.headings_lower.replace(float, ['age'])
+        data = martens.SourceStream(stream, file_type="csv", from_row=3).dataset.headings_lower.infer_types
         assert sum(data['age']) == 115
