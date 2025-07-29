@@ -38,9 +38,8 @@ class Dataset(dict):
         else:
             assert all(isinstance(record, dict) for record in template), \
                 "Type error: Some records are not dicts"
-            record_profiles = list(set(tuple(record) for record in template))
-            for col in record_profiles[0]:
-                self[col] = [record[col] if col in record else None for record in template]
+            columns = set().union(*(record.keys() for record in template))
+            self.update({col: [record.get(col) for record in template] for col in columns})
 
     def slice(self, start=None, stop=None, step=None):
         return Dataset({col: self[col][slice(start, stop, step)] for col in self.columns})
@@ -501,6 +500,27 @@ class Dataset(dict):
         index_groups = {k: [i for i, val in enumerate(keys) if val == k] for k in unique_keys}
         return [Dataset({col: [self[col][i] for i in index_groups[k]] for col in self.keys()}) for k in unique_keys]
 
+    def guess_types_with_template(self, date_formats: list[str] = None, datetime_formats: list[str] = None) -> "Dataset":
+        date_formats = date_formats or ["%Y-%m-%d"]
+        datetime_formats = datetime_formats or ["%Y-%m-%d %H:%M:%S"]
+        casters = [int, float, lambda v: {"true": True, "1": True, "false": False, "0": False}[v.lower()]]
+        casters.extend([lambda v: datetime.datetime.strptime(v, fmt).date() for fmt in date_formats])
+        casters.extend([lambda v: datetime.datetime.strptime(v, fmt) for fmt in datetime_formats])
+
+        def try_cast_column(values: list[str]) -> list:
+            for caster in casters:
+                try:
+                    return [caster(v) if v != "" else None for v in values]
+                except Exception:
+                    continue
+            return values
+
+        return Dataset({col: try_cast_column(self[col]) for col in self})
+
+    @property
+    def infer_types(self):
+        return self.guess_types_with_template()
+
     @property
     def headings_camel_to_snake(self):
         return Dataset({__camel_to_snake__(col): self[col] for col in self.columns})
@@ -604,7 +624,7 @@ class SourceFile:
 
     @property
     def file_read_csv(self):
-        with open(self.file_path, newline='') as f:
+        with open(self.file_path, newline='', encoding='utf-8-sig') as f:
             reader = csv.reader(f)
             for _ in range(self.from_row):
                 next(reader, None)
@@ -629,18 +649,13 @@ class SourceFile:
 class SourceStream(SourceFile):
     def __init__(self, stream, file_type="csv", sheet_name="Sheet1", from_row=0, from_col=0,
                  to_row=None, to_col=None, date_columns=None, using_range=None):
-        # Ensure file_type is lowercase and used to determine suffix
         file_type = file_type.lower()
         suffix = f".{file_type}"
         mode = 'w+b' if isinstance(stream, io.BytesIO) else 'w+'
-
-        # Create a temporary file with correct suffix
         self._temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix, mode=mode)
         self._temp_file.write(stream.getvalue())
         self._temp_file.flush()
         self._temp_file.close()
-
-        # Call the original SourceFile constructor
         super().__init__(
             file_path=self._temp_file.name,
             sheet_name=sheet_name,
@@ -671,7 +686,6 @@ def __sanitise_column_name__(column_name):
         '%': 'pct',
         '+': 'plus',
         '-': '_',
-        '\ufeff': '',
         '"': ''
     }
     column_name = str(column_name)
