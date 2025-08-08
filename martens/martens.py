@@ -245,6 +245,14 @@ class Dataset(dict):
             new[enumeration] = list(indexes)
         return Dataset({**existing, **new})
 
+    # This is for when you have a column of datasets and you want a new dataset that is stacked of these columns
+    def data_column_stack(self, name: str, additional_columns: list = None):
+        if additional_columns is None: additional_columns = []
+        return stack([
+            row[0].with_constants({col: row[i + 1] for i, col in enumerate(additional_columns)})
+            for row in self.generator([name] + additional_columns)
+        ])
+
     def json_explode(self, name):
         in_scope_columns = [name]
         rtn = self
@@ -711,6 +719,12 @@ def initialise(id_length, id_name='id'):
 
 def average(input_list):
     return sum(input_list) / len(input_list)
+
+
+def median(input_list):
+    s = sorted(input_list)
+    n = len(s)
+    return s[n // 2] if n % 2 else (s[n // 2 - 1] + s[n // 2]) / 2
 
 
 def __raise__(ex):
