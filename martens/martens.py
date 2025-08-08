@@ -246,12 +246,12 @@ class Dataset(dict):
         return Dataset({**existing, **new})
 
     # This is for when you have a column of datasets and you want a new dataset that is stacked of these columns
-    def data_column_stack(self, name: str, additional_columns: list = None):
+    def data_column_stack(self, name: str, additional_columns: list = None, as_intersection: bool = False):
         if additional_columns is None: additional_columns = []
         return stack([
             row[0].with_constants({col: row[i + 1] for i, col in enumerate(additional_columns)})
             for row in self.generator([name] + additional_columns)
-        ])
+        ], as_intersection=as_intersection)
 
     def json_explode(self, name):
         in_scope_columns = [name]
@@ -731,11 +731,33 @@ def __raise__(ex):
     raise ex
 
 
-def stack(list_of_datasets: list):
-    assert isinstance(list_of_datasets, list), "Type error: Not a list"
-    assert all([isinstance(element, Dataset) for element in list_of_datasets]), "Type error : Not a list of Datasets"
+def stack(list_of_datasets: list, as_intersection: bool = False):
+    if not isinstance(list_of_datasets, list):
+        raise TypeError("Type error: Not a list")
+    if not all(isinstance(element, Dataset) for element in list_of_datasets):
+        raise TypeError("Type error: Not a list of Datasets")
+
+    if not list_of_datasets:
+        return Dataset({})
+
     cols = [x for x in list_of_datasets[0]]
-    assert (all([sorted(cols) == sorted([x for x in y]) for y in list_of_datasets])), "Available columns do not correspond"
+
+    if as_intersection:
+        # Find columns that exist in ALL datasets (intersection)
+        common_cols = set(cols)
+        for dataset in list_of_datasets[1:]:
+            common_cols = common_cols.intersection(set(dataset.columns))
+
+        # Preserve the order from the first dataset
+        cols = [col for col in cols if col in common_cols]
+
+        if not cols:
+            raise ValueError("No common columns found across all datasets")
+    else:
+        # Original behavior - require all datasets to have same columns
+        if not all(sorted(cols) == sorted([x for x in y]) for y in list_of_datasets):
+            raise ValueError("Available columns do not correspond")
+
     return Dataset({col: [val for element in list_of_datasets for val in element[col]] for col in cols})
 
 
