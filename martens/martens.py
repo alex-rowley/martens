@@ -199,17 +199,24 @@ class Dataset(dict):
             value_name: self[h]
         }) for h in headings])
 
+    def column_stretch(self, name: str, new_names: list, drop=True):
+        if name not in self:
+            raise ValueError(f"Column '{name}' not found")
+
+        expected_len = len(new_names)
+        if not all(len(val) == expected_len for val in self[name] if val is not None):
+            raise ValueError(f"All values in '{name}' must have length {expected_len}")
+
+        new_cols = {
+            new_name: [val[i] if val is not None else None for val in self[name]]
+            for i, new_name in enumerate(new_names)
+        }
+        existing = self.__without__([name]) if drop else self.__existing__
+        return Dataset({**existing, **new_cols})
+
     # These variants of mutate deal with functions that output multiple value where you want multiple columns
     def mutate_stretch(self, mutation, names):
-        assert isinstance(names, list) or isinstance(names, dict), "Names should be a list or dict of string:function"
-        results = self.apply(mutation)
-        assert all([isinstance(r, list) for r in results]), "Some mutate results are not lists"
-        assert all([len(r) == len(names) for r in results]), "Some results are not the same length as names"
-        if isinstance(names, list):
-            new = {name: list(res) for name, res in zip(names, zip(*results))}
-        else:
-            new = {name: [names[name](x) for x in res] for name, res in zip(names, zip(*results))}
-        return Dataset({**self.__existing__, **new})
+        return self.mutate(mutation, '__temp_stretch__').column_stretch('__temp_stretch__', names)
 
     # ... or where you want to stack the results
     # TODO: Can I use either with or existing in this section
