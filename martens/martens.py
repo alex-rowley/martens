@@ -508,6 +508,16 @@ class Dataset(dict):
         index_groups = {k: [i for i, val in enumerate(keys) if val == k] for k in unique_keys}
         return [Dataset({col: [self[col][i] for i in index_groups[k]] for col in self.keys()}) for k in unique_keys]
 
+    def combine_columns(self, names: list, new_name: str):
+        if not all(name in self for name in names):
+            missing = [name for name in names if name not in self]
+            raise ValueError(f"Columns not found: {missing}")
+
+        return self.__with__({
+            new_name: [[row[i] for i, name in enumerate(names)]
+                       for row in self.generator(names)]
+        })
+
     def guess_types_with_template(self, date_formats: list[str] = None, datetime_formats: list[str] = None) -> "Dataset":
         date_formats = date_formats or ["%d-%m-%Y", "%d/%m/%Y"]
         datetime_formats = datetime_formats or ["%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S"]
