@@ -189,6 +189,8 @@ class Dataset(dict):
         rtn = {sec + 'y_values': rtn_values, sec + 'y_names': rtn_names}
         if not as_secondary:
             rtn['x_values'] = x_values
+        if colours is not None:
+            rtn['colours'] = colours
         return rtn
 
     # This is kind of the reverse pivot where you stack lots of headings on top of each other
@@ -525,7 +527,7 @@ class Dataset(dict):
                        for row in self.generator(names)]
         })
 
-    def guess_types_with_template(self, date_formats: list[str] = None, datetime_formats: list[str] = None) -> "Dataset":
+    def guess_types(self, columns: list[str] = None, date_formats: list[str] = None, datetime_formats: list[str] = None) -> "Dataset":
         date_formats = date_formats or ["%d-%m-%Y", "%d/%m/%Y"]
         datetime_formats = datetime_formats or ["%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S"]
         casters = [
@@ -544,14 +546,15 @@ class Dataset(dict):
                     continue
             return values
 
-        return Dataset({col: try_cast_column(self[col]) for col in self})
+        columns = self.columns if columns is None else columns
+        return Dataset({col: try_cast_column(self[col]) for col in columns})
 
     def column_lookup(self, values_col, name):
         return self.__with__({name: [rec.get(key) for key, rec in zip(self[values_col], self.records)]})
 
     @property
     def infer_types(self):
-        return self.guess_types_with_template()
+        return self.guess_types()
 
     @property
     def headings_camel_to_snake(self):
