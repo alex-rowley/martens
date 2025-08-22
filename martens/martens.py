@@ -547,7 +547,7 @@ class Dataset(dict):
             return values
 
         columns = self.columns if columns is None else columns
-        return Dataset({col: try_cast_column(self[col]) for col in columns})
+        return Dataset({col: try_cast_column(self[col]) if col in columns else self[col] for col in self.columns})
 
     def column_lookup(self, values_col, name):
         return self.__with__({name: [rec.get(key) for key, rec in zip(self[values_col], self.records)]})
