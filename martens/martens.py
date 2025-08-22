@@ -554,7 +554,8 @@ class Dataset(dict):
 
     @property
     def infer_types(self):
-        return self.guess_types()
+        columns = [c for c in self.columns if all(isinstance(x, str) for x in self[c])]
+        return self.guess_types(columns=columns)
 
     @property
     def headings_camel_to_snake(self):
